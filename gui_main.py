@@ -21,6 +21,7 @@ class SubtitleGeneratorGUI(QMainWindow):
         self.worker = None
         self.available_models = []
         self.process = None
+        self.saved_translation_model = 'hy-mt1.5-1.8b'  # 设置默认翻译模型
 
         self.init_ui()
         self.load_settings()
@@ -260,10 +261,21 @@ class SubtitleGeneratorGUI(QMainWindow):
                 self.trans_model_combo.clear()
                 if self.available_models:
                     self.trans_model_combo.addItems(self.available_models)
+
+                    # 尝试选择之前保存的翻译模型
+                    if hasattr(self, 'saved_translation_model') and self.saved_translation_model in self.available_models:
+                        index = self.available_models.index(self.saved_translation_model)
+                        self.trans_model_combo.setCurrentIndex(index)
+                        self.log_message(f"获取到 {len(self.available_models)} 个翻译模型，选择: {self.saved_translation_model}")
+                    else:
+                        # 如果保存的模型不在列表中，使用默认选择第一个
+                        if hasattr(self, 'saved_translation_model'):
+                            self.log_message(f"保存的模型 {self.saved_translation_model} 不在列表中，使用第一个模型")
+
                     self.log_message(f"获取到 {len(self.available_models)} 个翻译模型")
                     self.status_bar.showMessage(f"成功获取 {len(self.available_models)} 个模型")
                 else:
-                    self.trans_model_combo.addItem("qwen3.5-2b")
+                    self.trans_model_combo.addItem("hy-mt1.5-1.8b")
                     self.log_message("未获取到模型列表，使用默认值")
                     self.status_bar.showMessage("使用默认模型")
             else:
@@ -272,7 +284,7 @@ class SubtitleGeneratorGUI(QMainWindow):
         except Exception as e:
             self.log_message(f"获取模型列表失败: {e}")
             self.trans_model_combo.clear()
-            self.trans_model_combo.addItem("qwen3.5-2b")
+            self.trans_model_combo.addItem("hy-mt1.5-1.8b")
             self.status_bar.showMessage("连接失败，使用默认模型")
 
     def start_processing(self):
@@ -503,6 +515,8 @@ class SubtitleGeneratorGUI(QMainWindow):
         """加载保存的设置"""
         # 加载模型设置
         self.whisper_model_edit.setText(self.config.get('Model', 'whisper_model', 'kotoba-tech/kotoba-whisper-v2.1'))
+        # 翻译模型在refresh_model_list()之后设置，因为需要等待模型列表加载
+        self.saved_translation_model = self.config.get('Model', 'translation_model', 'hy-mt1.5-1.8b')
         self.lm_url_edit.setText(self.config.get('Model', 'lm_studio_url', 'http://127.0.0.1:1234/v1'))
 
         # 加载输出设置
