@@ -108,9 +108,8 @@ def process_subtitle(params):
             print(f"[翻译] 开始第一阶段翻译 (批量大小: {batch_size})...")
             translated_data = translate_chunks_batch(client, chunks, translation_model, batch_size)
 
-            # 第二阶段：复查优化
-            print("[翻译] 开始第二阶段复查优化...")
-            translated_texts = review_and_optimize_translations(client, translated_data, translation_model, batch_size=10)
+            # 翻译阶段完成，直接使用翻译结果
+            translated_texts = [item[2] for item in translated_data]
         else:
             translated_texts = [""] * len(chunks)
 
@@ -309,120 +308,6 @@ def translate_chunks_batch(client, chunks: list, model: str, batch_size: int = 1
             translated_data.append((i, chunk["text"], ""))
 
     return translated_data
-
-def review_and_optimize_translations(client, translated_data: list, model: str, batch_size: int = 20) -> list:
-    """
-    复查和优化翻译结果，确保所有日语都被正确翻译
-
-    Args:
-        client: OpenAI客户端
-        translated_data: [(index, original_text, translation), ...]
-        model: 翻译模型
-        batch_size: 复查批次大小
-
-    Returns:
-        优化后的翻译列表 [translation, ...] (按原顺序排列)
-    """
-    if not translated_data:
-        return []
-
-    # 过滤掉空文本
-    non_empty_data = [item for item in translated_data if item[1].strip()]
-    if not non_empty_data:
-        return [item[2] for item in translated_data]
-
-    optimized_translations = {}
-    total = len(non_empty_data)
-
-    print(f"[复查] 开始复查优化 {total} 条翻译...")
-
-    # 分批复查
-    for batch_start in range(0, len(non_empty_data), batch_size):
-        batch_end = min(batch_start + batch_size, len(non_empty_data))
-        current_batch = non_empty_data[batch_start:batch_end]
-
-        # 构建复查输入格式
-        review_input = []
-        for i, (idx, original, translation) in enumerate(current_batch):
-            review_input.append(f"{i+1}. {original}")
-            review_input.append(f"   {translation}")
-
-        review_text = "\n".join(review_input)
-
-        try:
-            response = client.chat.completions.create(
-                model=model,
-                messages=[
-                    {
-                        "role": "system",
-                        "content": "# 角色设定\n你是一位影视字幕质量把控专家，专精日中翻译的后期审校与优化。你的核心职责是确保所有日语字幕都被正确翻译成中文，并且译文质量达到专业发行标准。\n\n# 任务说明\n我将提供一组日语原文和对应的中文翻译，请你进行全面的复查与优化：\n1. **检查漏译**：找出所有未被翻译的句子（返回了原文或空白）\n2. **优化表达**：改善翻译质量，使其更符合中文影视字幕的阅读习惯\n3. **修正错误**：纠正明显的翻译错误或不当表达\n\n# 复查原则\n1. **零漏译原则**：每一句日语都必须有对应的中文翻译，不能有返回原文或空白的情况\n2. **质量优先**：优化后的译文要自然流畅，符合口语习惯，避免机翻感\n3. **保留原意**：优化时不能改变原文的核心含义和情感基调\n4. **编号对应**：返回的修正翻译必须与输入编号严格对应\n\n# 输入格式\n```\n1. [日语原文]\n   [当前中文翻译]\n\n2. [日语原文]\n   [当前中文翻译]\n...\n```\n\n# 输出格式\n```\n1. [优化后的中文翻译]  # 如无需修改，输出原翻译\n2. [优化后的中文翻译]\n...\n```\n\n# 特殊处理规则\n- 如果发现某句完全没有翻译（返回了日语原文或空白），必须提供中文翻译\n- 如果发现翻译质量较差，请优化为更自然的中文表达\n- 如果翻译已经很好，直接输出原翻译即可\n- 只输出编号和翻译，不要添加任何解释或注释\n\n# 质量标准\n- 译文必须是中文，不能包含日文字符（专有名词除外）\n- 单句不超过15个汉字，断句自然\n- 保持原文的语气和情感\n- 符合中文影视字幕的阅读节奏",
-                    },
-                    {"role": "user", "content": review_text},
-                ],
-                temperature=0.5,
-                max_tokens=3000,
-            )
-
-            result_text = response.choices[0].message.content.strip()
-
-            # 解析复查结果
-            optimized = parse_review_result(result_text, len(current_batch))
-
-            # 存储优化结果
-            for i, (idx, original, original_translation) in enumerate(current_batch):
-                if i < len(optimized):
-                    optimized_translations[idx] = optimized[i]
-                else:
-                    # 如果复查结果数量不足，使用原翻译
-                    optimized_translations[idx] = original_translation
-
-                # 更新进度
-                overall_progress = batch_start + i + 1
-                print(f"[复查] [{overall_progress}/{total}] {original[:20]} → {optimized_translations[idx][:20]}")
-
-        except Exception as e:
-            print(f"[复查] 批次复查失败: {e}")
-            # 如果复查失败，使用原翻译
-            for idx, original, translation in current_batch:
-                if idx not in optimized_translations:
-                    optimized_translations[idx] = translation
-
-    # 按原顺序组装最终翻译结果
-    final_translations = []
-    for idx, original, translation in translated_data:
-        if idx in optimized_translations:
-            final_translations.append(optimized_translations[idx])
-        else:
-            final_translations.append(translation)
-
-    print(f"[复查] 复查优化完成！")
-    return final_translations
-
-def parse_review_result(result_text: str, expected_count: int) -> list:
-    """解析复查结果，提取优化后的翻译"""
-    import re
-    optimized = []
-    lines = result_text.split('\n')
-
-    for line in lines:
-        line = line.strip()
-        if not line:
-            continue
-
-        # 匹配编号格式 "1. 翻译文本"
-        match = re.match(r'^[０-９\d]+[．.,、，]\s*([^\s]+(?:\s+[^\s]+)*)\s*$', line)
-        if match:
-            optimized.append(match.group(1).strip())
-        else:
-            # 如果没有编号，直接添加
-            optimized.append(line)
-
-    # 确保数量匹配
-    while len(optimized) < expected_count:
-        optimized.append("")
-    optimized = optimized[:expected_count]
-
-    return optimized
 
 def parse_batch_translations(result_text: str, expected_count: int) -> list:
     """解析批量翻译结果，提取各句翻译"""

@@ -390,19 +390,9 @@ class SubtitleGeneratorGUI(QMainWindow):
             if translate_match:
                 current = int(translate_match.group(1))
                 total = int(translate_match.group(2))
-                # 翻译阶段占总进度的40%（20%-60%）
-                progress = 20 + int((current / total) * 40)
+                # 翻译阶段占总进度的60%（20%-80%）
+                progress = 20 + int((current / total) * 60)
                 self.update_progress(progress, f"翻译中... [{current}/{total}]")
-                continue
-
-            # 匹配复查阶段进度：[复查] [1/587]
-            review_match = re.search(r'\[复查\]\s*\[(\d+)/(\d+)\]', line)
-            if review_match:
-                current = int(review_match.group(1))
-                total = int(review_match.group(2))
-                # 复查阶段占总进度的20%（60%-80%）
-                progress = 60 + int((current / total) * 20)
-                self.update_progress(progress, f"复查中... [{current}/{total}]")
                 continue
 
             # 匹配输出阶段进度
@@ -416,7 +406,7 @@ class SubtitleGeneratorGUI(QMainWindow):
                 continue
 
             # 匹配旧格式的进度信息：[1/587] 格式（兼容性处理）
-            transcribe_match = re.search(r'(?<!\[翻译\]|\[复查\]|\[转录\])\[(\d+)/(\d+)\]', line)
+            transcribe_match = re.search(r'(?<!\[翻译\]|\[转录\])\[(\d+)/(\d+)\]', line)
             if transcribe_match:
                 current = int(transcribe_match.group(1))
                 total = int(transcribe_match.group(2))
