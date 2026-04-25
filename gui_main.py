@@ -1,6 +1,7 @@
 import os
 import sys
 import requests
+from datetime import datetime
 from pathlib import Path
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
@@ -267,13 +268,14 @@ class SubtitleGeneratorGUI(QMainWindow):
                         index = self.available_models.index(self.saved_translation_model)
                         self.trans_model_combo.setCurrentIndex(index)
                         self.log_message(f"获取到 {len(self.available_models)} 个翻译模型，选择: {self.saved_translation_model}")
+                        self.status_bar.showMessage(f"成功获取 {len(self.available_models)} 个模型，当前选择: {self.saved_translation_model}")
                     else:
                         # 如果保存的模型不在列表中，使用默认选择第一个
                         if hasattr(self, 'saved_translation_model'):
-                            self.log_message(f"保存的模型 {self.saved_translation_model} 不在列表中，使用第一个模型")
-
-                    self.log_message(f"获取到 {len(self.available_models)} 个翻译模型")
-                    self.status_bar.showMessage(f"成功获取 {len(self.available_models)} 个模型")
+                            self.log_message(f"获取到 {len(self.available_models)} 个翻译模型，保存的模型 {self.saved_translation_model} 不在列表中，使用第一个模型")
+                        else:
+                            self.log_message(f"获取到 {len(self.available_models)} 个翻译模型")
+                        self.status_bar.showMessage(f"成功获取 {len(self.available_models)} 个模型")
                 else:
                     self.trans_model_combo.addItem("hy-mt1.5-1.8b")
                     self.log_message("未获取到模型列表，使用默认值")
@@ -496,8 +498,9 @@ class SubtitleGeneratorGUI(QMainWindow):
         self.status_label.setText(status)
 
     def log_message(self, message: str):
-        """添加日志消息"""
-        self.log_text.appendPlainText(message)
+        """添加日志消息，带时间戳"""
+        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        self.log_text.appendPlainText(f"[{timestamp}] {message}")
         # 自动滚动到底部
         scrollbar = self.log_text.verticalScrollBar()
         scrollbar.setValue(scrollbar.maximum())
