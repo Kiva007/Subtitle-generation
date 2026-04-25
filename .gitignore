@@ -1,0 +1,52 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# 项目特定
+resource/
+backup/
+*.wav
+*.mp4
+*.mkv
+*.avi
+*.mov
+*.flv
+*.wmv
+*.mp3
+*.m4a
+*.flac
+*.srt
+*.txt
+
+# 配置文件（如果需要）
+gui_config.ini
+
+# 系统文件
+.DS_Store
+Thumbs.db
+desktop.ini
