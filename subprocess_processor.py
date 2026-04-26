@@ -105,7 +105,7 @@ def process_subtitle(params):
             client = OpenAI(base_url=lm_url, api_key="lm-studio")
 
             # 第一阶段：批量翻译
-            print(f"[翻译] 开始第一阶段翻译 (批量大小: {batch_size})...")
+            print(f"[翻译] 开始翻译 (批量大小: {batch_size})...")
             translated_data = translate_chunks_batch(client, chunks, translation_model, batch_size)
 
             # 翻译阶段完成，直接使用翻译结果

@@ -9,7 +9,7 @@ def create_llm_client(
     return OpenAI(base_url=base_url, api_key=api_key)
 
 
-def translate_text(client: OpenAI, text: str, model: str = "qwen3.5-2b") -> str:
+def translate_text(client: OpenAI, text: str, model: str = "hy-mt1.5-1.8b") -> str:
     """使用本地模型将日文翻译为中文"""
     response = client.chat.completions.create(
         model=model,

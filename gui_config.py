@@ -16,7 +16,7 @@ class ConfigManager:
         default_config = {
             'Model': {
                 'whisper_model': 'kotoba-tech/kotoba-whisper-v2.1',
-                'translation_model': 'qwen3.5-2b',
+                'translation_model': 'hy-mt1.5-1.8b',
                 'lm_studio_url': 'http://127.0.0.1:1234/v1',
             },
             'Output': {

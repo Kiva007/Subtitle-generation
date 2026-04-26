@@ -64,7 +64,7 @@ def main():
     parser.add_argument("input", help="输入视频文件路径（mp4/mkv等）或音频文件路径（wav/mp3等）")
     parser.add_argument("-o", "--output-dir", default=None, help="输出目录，默认为输入文件所在目录")
     parser.add_argument("--model", default="kotoba-tech/kotoba-whisper-v2.1", help="Whisper 模型 ID")
-    parser.add_argument("--llm-model", default="qwen3.5-2b", help="本地 LLM 模型名称")
+    parser.add_argument("--llm-model", default="hy-mt1.5-1.8b", help="本地 LLM 模型名称")
     parser.add_argument("--no-translate", action="store_true", help="跳过翻译，只生成日文字幕")
     args = parser.parse_args()
 
