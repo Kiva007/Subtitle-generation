@@ -26,6 +26,7 @@ class ConfigManager:
                 'translated_subtitle': 'True',
                 'bilingual_subtitle': 'True',
                 'filter_mood_words': 'True',
+                'debug_mode': 'True',
             },
             'UI': {
                 'window_width': '800',
@@ -90,10 +91,11 @@ class ConfigManager:
         self.set('Model', 'translation_model', translation_model)
         self.set('Model', 'lm_studio_url', lm_url)
 
-    def update_output_settings(self, output_dir: str, original: bool, translated: bool, bilingual: bool, filter_mood: bool):
+    def update_output_settings(self, output_dir: str, original: bool, translated: bool, bilingual: bool, filter_mood: bool, debug_mode: bool):
         """更新输出设置"""
         self.set('Output', 'output_dir', output_dir)
         self.set('Output', 'original_subtitle', str(original))
         self.set('Output', 'translated_subtitle', str(translated))
         self.set('Output', 'bilingual_subtitle', str(bilingual))
         self.set('Output', 'filter_mood_words', str(filter_mood))
+        self.set('Output', 'debug_mode', str(debug_mode))

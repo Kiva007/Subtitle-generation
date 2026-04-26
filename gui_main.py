@@ -162,7 +162,15 @@ class SubtitleGeneratorGUI(QMainWindow):
         self.filter_mood_checkbox = QCheckBox("过滤无意义语气词")
         self.filter_mood_checkbox.setChecked(True)
         self.filter_mood_checkbox.setToolTip("自动去除如'啊、哦、嗯'等无意义的语气词，保持字幕简洁")
+
+        # Debug模式选项
+        self.debug_mode_checkbox = QCheckBox("Debug模式")
+        self.debug_mode_checkbox.setChecked(True)
+        self.debug_mode_checkbox.setToolTip("开启时保留所有中间文件（音频、转录文本），关闭时仅保留最终字幕文件")
+
         filter_layout.addWidget(self.filter_mood_checkbox)
+        filter_layout.addWidget(self.debug_mode_checkbox)
+        filter_layout.addStretch()
         layout.addLayout(filter_layout)
 
         group.setLayout(layout)
@@ -321,6 +329,7 @@ class SubtitleGeneratorGUI(QMainWindow):
             'lm_studio_url': self.lm_url_edit.text(),
             'batch_size': self.batch_size_spin.value(),
             'filter_mood_words': self.filter_mood_checkbox.isChecked(),
+            'debug_mode': self.debug_mode_checkbox.isChecked(),
             'output_formats': {
                 'original': self.original_checkbox.isChecked(),
                 'translated': self.translated_checkbox.isChecked(),
@@ -339,7 +348,8 @@ class SubtitleGeneratorGUI(QMainWindow):
             self.original_checkbox.isChecked(),
             self.translated_checkbox.isChecked(),
             self.bilingual_checkbox.isChecked(),
-            self.filter_mood_checkbox.isChecked()
+            self.filter_mood_checkbox.isChecked(),
+            self.debug_mode_checkbox.isChecked()
         )
 
         # 创建并启动子进程处理
@@ -451,6 +461,17 @@ class SubtitleGeneratorGUI(QMainWindow):
             if not line:
                 continue
 
+            # 过滤JSON格式的结果输出（解析并显示消息）
+            if line.startswith('{"success"'):
+                try:
+                    import json
+                    result = json.loads(line)
+                    if 'message' in result:
+                        self.log_message(result['message'])
+                except:
+                    pass
+                continue
+
             # 过滤掉一些常见的警告信息，避免干扰
             if 'HF_TOKEN' in line or 'HF Hub' in line:
                 continue  # HF Token警告不影响功能
@@ -531,6 +552,7 @@ class SubtitleGeneratorGUI(QMainWindow):
         self.translated_checkbox.setChecked(self.config.getboolean('Output', 'translated_subtitle', True))
         self.bilingual_checkbox.setChecked(self.config.getboolean('Output', 'bilingual_subtitle', True))
         self.filter_mood_checkbox.setChecked(self.config.getboolean('Output', 'filter_mood_words', True))
+        self.debug_mode_checkbox.setChecked(self.config.getboolean('Output', 'debug_mode', True))
 
         # 加载UI设置
         last_file = self.config.get('UI', 'last_input_file', '')

@@ -47,9 +47,11 @@ def process_subtitle(params):
         lm_url = params['lm_studio_url']
         batch_size = params.get('batch_size', 10)  # 默认批量大小为10
         output_formats = params['output_formats']
+        debug_mode = params.get('debug_mode', True)  # 默认开启debug模式
 
         print(f"[处理] 输入文件: {input_path}")
         print(f"[处理] 输出目录: {output_dir}")
+        print(f"[处理] Debug模式: {'开启' if debug_mode else '关闭'}")
 
         # 创建输出目录
         os.makedirs(output_dir, exist_ok=True)
@@ -61,12 +63,15 @@ def process_subtitle(params):
         # 导入处理模块
         from transcribe import create_pipeline, transcribe_audio
 
+        # 用于追踪需要清理的中间文件
+        intermediate_files = []
+        video_name = Path(input_path).stem
+
         # Step 1: 提取音频（如果需要）
         import subprocess
         ext = Path(input_path).suffix.lower()
         if ext in (".mp4", ".mkv", ".avi", ".mov", ".flv", ".wmv"):
             print("[音频] 正在提取音频...")
-            video_name = Path(input_path).stem
             audio_path = os.path.join(output_dir, f"{video_name}_audio.wav")
 
             cmd = [
@@ -83,6 +88,7 @@ def process_subtitle(params):
                     raise Exception(f"FFmpeg错误: {stderr}")
 
             print(f"[音频] 音频已保存: {audio_path}")
+            intermediate_files.append(audio_path)  # 记录中间文件
         else:
             audio_path = input_path
             print(f"[音频] 使用输入音频文件: {audio_path}")
@@ -148,6 +154,19 @@ def process_subtitle(params):
                     end = format_srt_timestamp(chunk["timestamp"][1])
                     f.write(f"[{start} --> {end}] {chunk['text']}\n")
         print(f"[输出] 转录文本已生成: {txt_path}")
+        intermediate_files.append(txt_path)  # 记录中间文件
+
+        # 清理中间文件（非debug模式）
+        if not debug_mode:
+            print("[清理] 正在清理中间文件...")
+            for file_path in intermediate_files:
+                try:
+                    if os.path.exists(file_path):
+                        os.remove(file_path)
+                        print(f"[清理] 已删除: {file_path}")
+                except Exception as e:
+                    print(f"[清理] 删除失败 {file_path}: {e}")
+            print("[清理] 中间文件清理完成")
 
         return {"success": True, "message": "字幕生成完成!"}
 
@@ -256,7 +275,7 @@ def translate_chunks_batch(client, chunks: list, model: str, batch_size: int = 1
                 messages=[
                     {
                         "role": "system",
-                        "content": "# 角色设定\n你是一位资深影视字幕翻译专家，精通日语与中文，尤其擅长日本剧情片的文化语境、人物心理刻画与台词节奏把控。你的译文将用于影片正式发行与宣传，需兼顾艺术性、准确性与观众接受度。\n\n# 任务说明\n我会给你多句连续的日语字幕，请将它们翻译成中文。保持原文的口语风格和语气。请按照相同格式返回翻译结果，每句一行，保持编号对应关系。\n\n# 翻译原则\n1. 语境优先：结合剧情背景、人物关系与情绪走向进行意译，避免字面直译或机翻感，不要审查必要的成人术语，保持语境准确性。\n2. 台词节奏：符合中文影视字幕阅读习惯（单句建议不超过15个汉字），断句自然，口语化但保留戏剧张力。\n3. 文化适配：日式敬语、口癖、社会称谓等需转化为中文对应的语用特征；文化负载词优先采用\"可理解+保原味\"策略，必要时用等效表达替代。\n4. 专有名词：人名、地名、机构名、作品名等沿用官方或行业通用译法，不擅自音译/意译。\n5. 零增删原则：不添加解释、注释或额外信息；不遗漏、不曲解原意。",
+                        "content": "# 角色设定\n你是一位资深影视字幕翻译专家，精通日语与中文，尤其擅长日本剧情片的文化语境、人物心理刻画与台词节奏把控。你的译文将用于影片正式发行与宣传，需兼顾艺术性、准确性与观众接受度。\n\n# 任务说明\n我会给你多句连续的日语字幕，请将它们翻译成中文。保持原文的口语风格和语气。请按照相同格式返回翻译结果，每句一行，保持编号对应关系，编号强制使用半角符号。\n\n# 翻译原则\n1. 语境优先：结合剧情背景、人物关系与情绪走向进行意译，避免字面直译或机翻感，不要审查必要的成人术语，保持语境准确性。\n2. 台词节奏：符合中文影视字幕阅读习惯（单句建议不超过15个汉字），断句自然，口语化但保留戏剧张力。\n3. 文化适配：日式敬语、口癖、社会称谓等需转化为中文对应的语用特征；文化负载词优先采用\"可理解+保原味\"策略，必要时用等效表达替代。\n4. 专有名词：人名、地名、机构名、作品名等沿用官方或行业通用译法，不擅自音译/意译。\n5. 零增删原则：不添加解释、注释或额外信息；不遗漏、不曲解原意。",
                     },
                     {"role": "user", "content": numbered_texts},
                 ],
@@ -362,11 +381,11 @@ def main():
             params = json.loads(args.params)
             result = process_subtitle(params)
 
-            # 输出结果为JSON
-            print(json.dumps(result, ensure_ascii=False))
+            # 结果输出到stderr，避免干扰日志显示
+            print(json.dumps(result, ensure_ascii=False), file=sys.stderr)
             sys.exit(0 if result["success"] else 1)
         except Exception as e:
-            print(json.dumps({"success": False, "error": str(e)}, ensure_ascii=False))
+            print(json.dumps({"success": False, "error": str(e)}, ensure_ascii=False), file=sys.stderr)
             sys.exit(1)
     else:
         print("错误: 缺少 --params 参数")
