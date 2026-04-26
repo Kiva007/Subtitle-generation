@@ -22,8 +22,8 @@ def create_pipeline(model_id: str = "kotoba-tech/kotoba-whisper-v2.1"):
     device = "cuda:0" if torch.cuda.is_available() else "cpu"
     model_kwargs = {"attn_implementation": "sdpa"} if torch.cuda.is_available() else {}
 
-    print(f"[transcribe] Using device: {device}")
-    print(f"[transcribe] Loading model: {model_id}")
+    print(f"[转录] 使用设备: {device}")
+    print(f"[转录] 加载模型: {model_id}")
 
     pipe = pipeline(
         model=model_id,
@@ -34,7 +34,7 @@ def create_pipeline(model_id: str = "kotoba-tech/kotoba-whisper-v2.1"):
         punctuator=True,
     )
 
-    print("[transcribe] Model loaded successfully, transcription in progress.")
+    print("[转录] 模型加载成功，开始转录。")
     return pipe
 
 
