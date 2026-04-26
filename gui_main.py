@@ -422,12 +422,10 @@ class SubtitleGeneratorGUI(QMainWindow):
             # 匹配输出阶段进度
             if '[输出]' in line or '生成字幕文件' in line:
                 self.update_progress(80, "生成字幕文件...")
-                continue
 
             # 匹配转录阶段进度：[转录] 格式
             if '[转录]' in line or '转录' in line:
                 self.update_progress(min(15, 15), "正在转录...")
-                continue
 
             # 匹配旧格式的进度信息：[1/587] 格式（兼容性处理）
             transcribe_match = re.search(r'(?<!\[翻译\]|\[转录\])\[(\d+)/(\d+)\]', line)
