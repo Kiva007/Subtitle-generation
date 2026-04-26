@@ -9,6 +9,7 @@ class ConfigManager:
         self.config = configparser.ConfigParser()
         self.config_dir = Path(__file__).parent
         self.config_path = self.config_dir / config_file
+        self.default_translation_model = 'sakura-galtransl-7b-v3.7'  # 设置默认翻译模型
         self._load_config()
 
     def _load_config(self):
@@ -16,7 +17,7 @@ class ConfigManager:
         default_config = {
             'Model': {
                 'whisper_model': 'kotoba-tech/kotoba-whisper-v2.1',
-                'translation_model': 'hy-mt1.5-1.8b',
+                'translation_model': 'sakura-galtransl-7b-v3.7',
                 'lm_studio_url': 'http://127.0.0.1:1234/v1',
             },
             'Output': {
