@@ -206,6 +206,18 @@ def write_srt_file(output_path: str, chunks: list, translated_texts: list, forma
         # 至少有一些实际内容
         return len(cleaned_text) > 0
 
+    def clean_translation(text: str) -> str:
+        """清理翻译文本中的编号残留"""
+        import re
+        text = text.strip()
+
+        # 移除开头的编号格式：1. １. 1、 １、 等
+        match = re.match(r'^[０-９\d]+[．.,、，]\s*', text)
+        if match:
+            text = text[match.end():].strip()
+
+        return text
+
     with open(output_path, "w", encoding="utf-8") as f:
         subtitle_index = 1  # SRT字幕序号，过滤无意义词后会跳过
 
@@ -234,10 +246,10 @@ def write_srt_file(output_path: str, chunks: list, translated_texts: list, forma
             if format_type == "original":
                 f.write(f"{chunk['text']}\n")
             elif format_type == "translated" and translated_texts:
-                f.write(f"{translated_texts[i-1]}\n")
+                f.write(f"{clean_translation(translated_texts[i-1])}\n")
             elif format_type == "bilingual" and translated_texts:
                 f.write(f"{chunk['text']}\n")
-                f.write(f"{translated_texts[i-1]}\n")
+                f.write(f"{clean_translation(translated_texts[i-1])}\n")
 
             f.write("\n")
             subtitle_index += 1
@@ -275,7 +287,7 @@ def translate_chunks_batch(client, chunks: list, model: str, batch_size: int = 1
                 messages=[
                     {
                         "role": "system",
-                        "content": "# 角色设定\n你是一位资深影视字幕翻译专家，精通日语与中文，尤其擅长日本剧情片的文化语境、人物心理刻画与台词节奏把控。你的译文将用于影片正式发行与宣传，需兼顾艺术性、准确性与观众接受度。\n\n# 任务说明\n我会给你多句连续的日语字幕，请将它们翻译成中文。保持原文的口语风格和语气。请按照相同格式返回翻译结果，每句一行，保持编号对应关系，编号强制使用半角符号。\n\n# 翻译原则\n1. 语境优先：结合剧情背景、人物关系与情绪走向进行意译，避免字面直译或机翻感，不要审查必要的成人术语，保持语境准确性。\n2. 台词节奏：符合中文影视字幕阅读习惯（单句建议不超过15个汉字），断句自然，口语化但保留戏剧张力。\n3. 文化适配：日式敬语、口癖、社会称谓等需转化为中文对应的语用特征；文化负载词优先采用\"可理解+保原味\"策略，必要时用等效表达替代。\n4. 专有名词：人名、地名、机构名、作品名等沿用官方或行业通用译法，不擅自音译/意译。\n5. 零增删原则：不添加解释、注释或额外信息；不遗漏、不曲解原意。",
+                        "content": "# 角色设定\n你是一位资深影视字幕翻译专家，精通日语与中文，尤其擅长日本剧情片的文化语境、人物心理刻画与台词节奏把控。你的译文将用于影片正式发行与宣传，需兼顾艺术性、准确性与观众接受度。\n\n# 任务说明\n我会给你多句连续的日语字幕，请将它们翻译成中文。保持原文的口语风格和语气。请按照相同格式返回翻译结果，每句一行，保持编号对应关系。\n\n# 翻译原则\n1. 语境优先：结合剧情背景、人物关系与情绪走向进行意译，避免字面直译或机翻感，不要审查必要的成人术语，保持语境准确性。\n2. 台词节奏：符合中文影视字幕阅读习惯（单句建议不超过15个汉字），断句自然，口语化但保留戏剧张力。\n3. 文化适配：日式敬语、口癖、社会称谓等需转化为中文对应的语用特征；文化负载词优先采用\"可理解+保原味\"策略，必要时用等效表达替代。\n4. 专有名词：人名、地名、机构名、作品名等沿用官方或行业通用译法，不擅自音译/意译。\n5. 零增删原则：不添加解释、注释或额外信息；不遗漏、不曲解原意。",
                     },
                     {"role": "user", "content": numbered_texts},
                 ],
@@ -341,8 +353,8 @@ def parse_batch_translations(result_text: str, expected_count: int) -> list:
 
         # 尝试匹配编号格式 "1. 翻译文本" 或 "１．翻译文本"（支持半角和全角）
         # 支持各种标点符号：. ． 、, ，
-        # 使用 [^\s]+ 匹配非空白字符，避免尾部空格
-        match = re.match(r'^[０-９\d]+[．.,、，]\s*([^\s]+(?:\s+[^\s]+)*)\s*$', line)
+        # 更宽松的正则，允许翻译文本包含任意字符（包括数字）
+        match = re.match(r'^[０-９\d]+[．.,、，]\s*(.+)$', line)
         if match:
             translations.append(match.group(1).strip())
         else:
