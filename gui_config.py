@@ -29,9 +29,18 @@ class ConfigManager:
                 'debug_mode': 'True',
             },
             'UI': {
-                'window_width': '800',
-                'window_height': '600',
-                'last_input_file': '',
+                'window_width': '900',
+                'window_height': '800',
+            },
+            'Batch': {
+                'continue_on_failure': 'True',
+                'pause_on_failure': 'False',
+                'max_retries': '3',
+                'single_file_timeout': '600',
+                'auto_clear_on_complete': 'False',
+                'remember_queue_on_exit': 'True',
+                'recursive_folder_scan': 'True',
+                'temp_dir_keep_on_success': 'False',
             }
         }
 
@@ -99,3 +108,7 @@ class ConfigManager:
         self.set('Output', 'bilingual_subtitle', str(bilingual))
         self.set('Output', 'filter_mood_words', str(filter_mood))
         self.set('Output', 'debug_mode', str(debug_mode))
+
+    def get_batch_config(self, key: str, fallback: str = '') -> str:
+        """获取批量处理配置"""
+        return self.get('Batch', key, fallback)
