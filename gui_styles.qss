@@ -1,17 +1,4 @@
-/* 字幕生成器 GUI 样式表 */
-
-/* ===== 全局颜色定义 ===== */
---primary-color: #60a5fa;
---secondary-color: #3b82f6;
---bg-gradient-start: #1e3a5f;
---bg-gradient-end: #0f172a;
---panel-bg: #0f172a;
---border-color: #334155;
---text-primary: #e0e6ed;
---text-secondary: #94a3b8;
---success-color: #22c55e;
---warning-color: #fbbf24;
---error-color: #ef4444;
+/* 字幕生成器 GUI 样式表 - 深色工业风 */
 
 /* ===== 全局样式 ===== */
 QWidget {
@@ -44,6 +31,8 @@ QMainWindow {
     font-weight: 600;
     font-size: 15px;
     letter-spacing: 0.5px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid #334155;
 }
 
 /* ===== 设置组标题 ===== */
@@ -53,8 +42,18 @@ QMainWindow {
     font-size: 12px;
     text-transform: uppercase;
     letter-spacing: 1px;
-    margin-top: 12px;
-    margin-bottom: 8px;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+}
+
+.group_title::before {
+    content: '';
+    width: 3px;
+    height: 14px;
+    background: #60a5fa;
+    border-radius: 2px;
+    margin-right: 8px;
 }
 
 /* ===== 设置标签 ===== */
@@ -62,6 +61,7 @@ QMainWindow {
     color: #94a3b8;
     font-size: 12px;
     font-weight: 500;
+    margin-bottom: 6px;
 }
 
 /* ===== 输入框 ===== */
@@ -77,7 +77,7 @@ QLineEdit, QSpinBox {
 
 QLineEdit:focus, QSpinBox:focus {
     border: 1px solid #60a5fa;
-    outline: none;
+    background: #0f172a;
 }
 
 QLineEdit:hover, QSpinBox:hover {
@@ -85,7 +85,7 @@ QLineEdit:hover, QSpinBox:hover {
 }
 
 /* 技术字体输入框 */
-.tech_input {
+#tech_input {
     font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
     font-size: 12px;
 }
@@ -128,6 +128,7 @@ QCheckBox {
     color: #cbd5e1;
     font-size: 13px;
     spacing: 8px;
+    margin-bottom: 8px;
 }
 
 QCheckBox::indicator {
@@ -207,7 +208,7 @@ QPushButton:disabled {
 }
 
 /* 主按钮 */
-.primary_button {
+#primary_button {
     background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
                 stop:0 #60a5fa, stop:1 #3b82f6);
     color: #0f172a;
@@ -215,7 +216,7 @@ QPushButton:disabled {
     font-weight: 600;
 }
 
-.primary_button:hover {
+#primary_button:hover {
     background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
                 stop:0 #3b82f6, stop:1 #2563eb);
 }
@@ -274,54 +275,14 @@ QHeaderView::section {
     font-weight: 600;
 }
 
-/* ===== 状态标签 ===== */
-.status_label {
-    padding: 4px 10px;
-    border-radius: 12px;
-    font-size: 10px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-
-.status_completed {
-    background: rgba(34, 197, 94, 0.2);
-    color: #22c55e;
-    border: 1px solid rgba(34, 197, 94, 0.3);
-}
-
-.status_processing {
-    background: rgba(96, 165, 250, 0.2);
-    color: #60a5fa;
-    border: 1px solid rgba(96, 165, 250, 0.3);
-}
-
-.status_pending {
-    background: rgba(251, 191, 36, 0.2);
-    color: #fbbf24;
-    border: 1px solid rgba(251, 191, 36, 0.3);
-}
-
-.status_failed {
-    background: rgba(239, 68, 68, 0.2);
-    color: #ef4444;
-    border: 1px solid rgba(239, 68, 68, 0.3);
-}
-
 /* ===== 统计信息栏 ===== */
-.stats_bar {
+#stats_bar {
     background: rgba(15, 23, 42, 0.5);
     border: 1px solid #334155;
     border-radius: 4px;
     padding: 12px 15px;
     font-size: 11px;
     color: #64748b;
-}
-
-.stat_value {
-    color: #60a5fa;
-    font-weight: 600;
-    font-size: 13px;
 }
 
 /* ===== 进度条 ===== */
@@ -345,6 +306,13 @@ QProgressBar::chunk {
     border: 1px solid #334155;
     border-radius: 6px;
     padding: 15px;
+}
+
+#control_panel QPushButton {
+    flex: 1;
+    padding: 12px 16px;
+    font-size: 14px;
+    font-weight: 600;
 }
 
 /* ===== 进度区域 ===== */
@@ -377,25 +345,16 @@ QProgressBar::chunk {
     color: #94a3b8;
 }
 
-.log_time {
-    color: #60a5fa;
-    opacity: 0.8;
-}
-
-.log_info {
+QPlainTextEdit {
+    background: #020617;
+    border: none;
     color: #94a3b8;
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    font-size: 11px;
 }
 
-.log_success {
-    color: #22c55e;
-}
-
-.log_warning {
-    color: #fbbf24;
-}
-
-.log_error {
-    color: #ef4444;
+QPlainTextEdit QScrollBar:vertical {
+    background: #020617;
 }
 
 /* ===== 滚动条 ===== */
@@ -437,11 +396,6 @@ QScrollBar::handle:horizontal:hover {
 
 QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
     width: 0px;
-}
-
-/* ===== 分隔线 ===== */
-QFrame[frameShape="4"], QFrame[frameShape="5"] {
-    color: #334155;
 }
 
 /* ===== 工具提示 ===== */

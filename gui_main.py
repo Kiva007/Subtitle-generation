@@ -16,7 +16,7 @@ from PyQt6.QtWidgets import (
     QHeaderView, QAbstractItemView, QMenu, QInputDialog
 )
 from PyQt6.QtCore import Qt, QProcess, QProcessEnvironment, pyqtSignal, QThread, QObject, QSize
-from PyQt6.QtGui import QFont, QDragEnterEvent, QDropEvent
+from PyQt6.QtGui import QFont, QColor, QDragEnterEvent, QDropEvent
 
 @dataclass
 class TaskItem:
@@ -246,12 +246,12 @@ class BatchProcessor(QObject):
                 task.status = 'completed'
                 task.progress = 100.0
                 task.error_message = ''
-                self.log_message.emit(f"文件处理完成: {Path(task.file_path).name}")
+                self.log_message.emit(f"文件处理完成: {Path(task.file_path).name}", "success")
                 self.task_progress.emit(index, 100.0, "完成")
             else:
                 task.status = 'failed'
                 task.error_message = error
-                self.log_message.emit(f"文件处理失败: {Path(task.file_path).name} - {error}")
+                self.log_message.emit(f"文件处理失败: {Path(task.file_path).name} - {error}", "error")
 
             self.task_finished.emit(index, success, error)
             self._update_batch_progress()
@@ -298,7 +298,7 @@ class BatchProcessor(QObject):
             ]
         }
 
-        self.log_message.emit(f"批量处理完成! 成功: {summary['completed']}, 失败: {summary['failed']}")
+        self.log_message.emit(f"批量处理完成! 成功: {summary['completed']}, 失败: {summary['failed']}", "info")
         self.batch_finished.emit(summary)
 
     def _is_valid_media(self, file_path: str) -> bool:
@@ -462,25 +462,31 @@ class SubtitleGeneratorGUI(QMainWindow):
 
     def init_ui(self):
         """初始化用户界面"""
-        self.setWindowTitle("Subtitle Generator v2.0 - 批量处理版")
-        self.setMinimumSize(900, 800)
-        self.resize(900, 800)
+        self.setWindowTitle("字幕生成器 v2.0")
+        self.setMinimumSize(1200, 800)
+        self.resize(1400, 900)
+
+        # 加载样式表
+        self.load_stylesheet()
 
         # 主窗口部件
         main_widget = QWidget()
+        main_widget.setObjectName("main_container")
         self.setCentralWidget(main_widget)
 
-        # 主布局
-        main_layout = QVBoxLayout()
+        # 主布局：左右分栏
+        main_layout = QHBoxLayout()
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        main_layout.setSpacing(0)
         main_widget.setLayout(main_layout)
 
-        # 添加各个组件
-        main_layout.addWidget(self._create_file_selection_group())
-        main_layout.addWidget(self._create_model_config_group())
-        main_layout.addWidget(self._create_output_format_group())
-        main_layout.addWidget(self._create_control_buttons())
-        main_layout.addWidget(self._create_progress_section())
-        main_layout.addWidget(self._create_log_section())
+        # 左侧设置面板
+        self.sidebar_panel = self._create_sidebar_panel()
+        main_layout.addWidget(self.sidebar_panel)
+
+        # 右侧工作区
+        self.main_content = self._create_main_content()
+        main_layout.addWidget(self.main_content)
 
         # 状态栏
         self.status_bar = QStatusBar()
@@ -677,49 +683,434 @@ class SubtitleGeneratorGUI(QMainWindow):
 
     def _create_progress_section(self):
         """创建进度显示区域"""
-        group = QGroupBox("进度")
+        section = QWidget()
+        section.setObjectName("progress_section")
         layout = QVBoxLayout()
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(14)
+        section.setLayout(layout)
 
-        # 总体进度条
+        # 总体进度
+        overall_item = QWidget()
         overall_layout = QHBoxLayout()
-        overall_label = QLabel("总体进度:")
-        self.overall_progress_bar = QProgressBar()
-        self.overall_progress_label = QLabel("(0/0)")
+        overall_layout.setContentsMargins(0, 0, 0, 0)
+        overall_item.setLayout(overall_layout)
+
+        overall_label = QLabel("总体进度")
+        overall_label.setObjectName("progress_label")
         overall_layout.addWidget(overall_label)
-        overall_layout.addWidget(self.overall_progress_bar)
+
+        self.overall_progress_label = QLabel("0/0 (0%)")
+        self.overall_progress_label.setObjectName("progress_value")
+        overall_layout.addStretch()
         overall_layout.addWidget(self.overall_progress_label)
-        layout.addLayout(overall_layout)
+        layout.addWidget(overall_item)
 
-        # 当前文件进度条
+        self.overall_progress_bar = QProgressBar()
+        self.overall_progress_bar.setTextVisible(False)
+        layout.addWidget(self.overall_progress_bar)
+
+        # 当前文件进度
+        current_item = QWidget()
         current_layout = QHBoxLayout()
-        current_label = QLabel("当前文件:")
-        self.current_progress_bar = QProgressBar()
-        self.current_file_label = QLabel("无")
-        current_layout.addWidget(current_label)
-        current_layout.addWidget(self.current_progress_bar)
-        current_layout.addWidget(self.current_file_label)
-        layout.addLayout(current_layout)
+        current_layout.setContentsMargins(0, 0, 0, 0)
+        current_item.setLayout(current_layout)
 
-        # 状态标签
-        self.status_label = QLabel("就绪")
+        self.current_file_label = QLabel("当前文件: 无")
+        self.current_file_label.setObjectName("progress_label")
+        current_layout.addWidget(self.current_file_label)
+
+        self.current_progress_label = QLabel("处理中 (0%)")
+        self.current_progress_label.setObjectName("progress_value")
+        current_layout.addStretch()
+        current_layout.addWidget(self.current_progress_label)
+        layout.addWidget(current_item)
+
+        self.current_progress_bar = QProgressBar()
+        self.current_progress_bar.setTextVisible(False)
+        layout.addWidget(self.current_progress_bar)
+
+        # 状态文字
+        self.status_label = QLabel("📌 状态: 就绪")
+        self.status_label.setObjectName("progress_label")
         layout.addWidget(self.status_label)
 
-        group.setLayout(layout)
-        return group
+        return section
 
     def _create_log_section(self):
         """创建日志显示区域"""
-        group = QGroupBox("处理日志")
+        section = QWidget()
+        section.setObjectName("log_area")
         layout = QVBoxLayout()
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+        section.setLayout(layout)
 
         self.log_text = QPlainTextEdit()
         self.log_text.setReadOnly(True)
-        self.log_text.setMaximumHeight(200)
-        self.log_text.setFont(QFont("Courier New", 9))
+        self.log_text.setMaximumHeight(180)
+        self.log_text.setFont(QFont("Consolas", 10))
 
         layout.addWidget(self.log_text)
-        group.setLayout(layout)
-        return group
+        return section
+
+    def _create_sidebar_panel(self):
+        """创建左侧设置面板"""
+        sidebar = QWidget()
+        sidebar.setObjectName("sidebar_panel")
+        sidebar.setFixedWidth(320)
+
+        sidebar_layout = QVBoxLayout()
+        sidebar_layout.setContentsMargins(20, 20, 20, 20)
+        sidebar_layout.setSpacing(15)
+        sidebar.setLayout(sidebar_layout)
+
+        # 标题
+        title_label = QLabel("⚙️ 配置设置")
+        title_label.setObjectName("sidebar_title")
+        sidebar_layout.addWidget(title_label)
+
+        # AI模型配置区域
+        sidebar_layout.addWidget(self._create_ai_model_section())
+
+        # 输出格式区域
+        sidebar_layout.addWidget(self._create_output_format_section())
+
+        # 输出设置区域
+        sidebar_layout.addWidget(self._create_output_settings_section())
+
+        sidebar_layout.addStretch()
+
+        return sidebar
+
+    def _create_ai_model_section(self):
+        """创建AI模型配置区域"""
+        section = QWidget()
+        layout = QVBoxLayout()
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(10)
+        section.setLayout(layout)
+
+        # 标题
+        title = QLabel("🤖 AI 模型")
+        title.setObjectName("group_title")
+        layout.addWidget(title)
+
+        # Whisper模型
+        whisper_label = QLabel("Whisper 模型")
+        whisper_label.setObjectName("setting_label")
+        layout.addWidget(whisper_label)
+
+        self.whisper_model_edit = QLineEdit("kotoba-tech/kotoba-whisper-v2.1")
+        self.whisper_model_edit.setObjectName("tech_input")
+        layout.addWidget(self.whisper_model_edit)
+
+        # 翻译模型
+        trans_label = QLabel("翻译模型")
+        trans_label.setObjectName("setting_label")
+        layout.addWidget(trans_label)
+
+        self.trans_model_combo = QComboBox()
+        self.trans_model_combo.addItems(["sakura-galtransl-7b-v3.7", "qwen2.5-7b-instruct", "hy-mt1.5-1.8b"])
+        layout.addWidget(self.trans_model_combo)
+
+        self.refresh_models_button = QPushButton("刷新模型列表")
+        self.refresh_models_button.clicked.connect(self.refresh_model_list)
+        layout.addWidget(self.refresh_models_button)
+
+        # LM Studio URL
+        url_label = QLabel("LM Studio 地址")
+        url_label.setObjectName("setting_label")
+        layout.addWidget(url_label)
+
+        self.lm_url_edit = QLineEdit("http://127.0.0.1:1234/v1")
+        self.lm_url_edit.setObjectName("tech_input")
+        layout.addWidget(self.lm_url_edit)
+
+        # 批量大小
+        batch_label = QLabel("批量大小 (7-150)")
+        batch_label.setObjectName("setting_label")
+        layout.addWidget(batch_label)
+
+        self.batch_size_spin = QSpinBox()
+        self.batch_size_spin.setMinimum(7)
+        self.batch_size_spin.setMaximum(150)
+        self.batch_size_spin.setValue(70)
+        self.batch_size_spin.setObjectName("tech_input")
+        self.batch_size_spin.setToolTip("一次翻译的字幕条数，更大的值提供更好的上下文但可能影响速度")
+        layout.addWidget(self.batch_size_spin)
+
+        return section
+
+    def _create_output_format_section(self):
+        """创建输出格式区域"""
+        section = QWidget()
+        layout = QVBoxLayout()
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(8)
+        section.setLayout(layout)
+
+        # 标题
+        title = QLabel("📄 输出格式")
+        title.setObjectName("group_title")
+        layout.addWidget(title)
+
+        # 字幕格式复选框
+        self.original_checkbox = QCheckBox("原文字幕")
+        self.original_checkbox.setChecked(True)
+        layout.addWidget(self.original_checkbox)
+
+        self.translated_checkbox = QCheckBox("中文字幕")
+        self.translated_checkbox.setChecked(True)
+        layout.addWidget(self.translated_checkbox)
+
+        self.bilingual_checkbox = QCheckBox("双语字幕")
+        self.bilingual_checkbox.setChecked(False)
+        layout.addWidget(self.bilingual_checkbox)
+
+        self.filter_mood_checkbox = QCheckBox("过滤语气词")
+        self.filter_mood_checkbox.setChecked(True)
+        self.filter_mood_checkbox.setToolTip("自动去除如'啊、哦、嗯'等无意义的语气词")
+        layout.addWidget(self.filter_mood_checkbox)
+
+        self.debug_mode_checkbox = QCheckBox("调试模式")
+        self.debug_mode_checkbox.setChecked(True)
+        self.debug_mode_checkbox.setToolTip("开启时保留所有中间文件")
+        layout.addWidget(self.debug_mode_checkbox)
+
+        return section
+
+    def _create_output_settings_section(self):
+        """创建输出设置区域"""
+        section = QWidget()
+        layout = QVBoxLayout()
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(8)
+        section.setLayout(layout)
+
+        # 标题
+        title = QLabel("📁 输出设置")
+        title.setObjectName("group_title")
+        layout.addWidget(title)
+
+        # 输出目录
+        output_label = QLabel("输出目录")
+        output_label.setObjectName("setting_label")
+        layout.addWidget(output_label)
+
+        output_layout = QHBoxLayout()
+        self.output_path_edit = QLineEdit("D:\\字幕输出")
+        self.output_path_edit.setObjectName("tech_input")
+        self.output_path_edit.setPlaceholderText("默认为输入文件所在目录")
+
+        self.output_button = QPushButton("选择")
+        self.output_button.clicked.connect(self.select_output_dir)
+        self.output_button.setMaximumWidth(60)
+
+        output_layout.addWidget(self.output_path_edit)
+        output_layout.addWidget(self.output_button)
+        layout.addLayout(output_layout)
+
+        # 选项
+        self.keep_temp_checkbox = QCheckBox("保留临时文件")
+        self.keep_temp_checkbox.setChecked(False)
+        layout.addWidget(self.keep_temp_checkbox)
+
+        self.recursive_scan_checkbox = QCheckBox("递归扫描文件夹")
+        self.recursive_scan_checkbox.setChecked(True)
+        layout.addWidget(self.recursive_scan_checkbox)
+
+        return section
+
+    def _create_main_content(self):
+        """创建右侧主要工作区"""
+        content = QWidget()
+        content.setObjectName("main_content")
+
+        content_layout = QVBoxLayout()
+        content_layout.setContentsMargins(25, 20, 25, 20)
+        content_layout.setSpacing(20)
+        content.setLayout(content_layout)
+
+        # 头部标题
+        header = self._create_content_header()
+        content_layout.addWidget(header)
+
+        # 文件队列区域
+        content_layout.addWidget(self._create_file_queue_section())
+
+        # 控制按钮区域
+        content_layout.addWidget(self._create_control_panel())
+
+        # 进度显示区域
+        content_layout.addWidget(self._create_progress_section())
+
+        # 日志输出区域
+        content_layout.addWidget(self._create_log_section())
+
+        content_layout.addStretch()
+
+        return content
+
+    def _create_content_header(self):
+        """创建内容头部"""
+        header = QWidget()
+        layout = QHBoxLayout()
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(15)
+        header.setLayout(layout)
+
+        # 收缩按钮
+        self.toggle_button = QPushButton("◀")
+        self.toggle_button.setObjectName("toggle_button")
+        self.toggle_button.clicked.connect(self.toggle_sidebar)
+        layout.addWidget(self.toggle_button)
+
+        # 标题组
+        title_group = QWidget()
+        title_layout = QVBoxLayout()
+        title_layout.setContentsMargins(0, 0, 0, 0)
+        title_layout.setSpacing(5)
+        title_group.setLayout(title_layout)
+
+        app_title = QLabel("字幕生成器 v2.0")
+        app_title.setObjectName("app_title")
+        title_layout.addWidget(app_title)
+
+        app_subtitle = QLabel("专业级日语字幕批量处理系统")
+        app_subtitle.setObjectName("app_subtitle")
+        title_layout.addWidget(app_subtitle)
+
+        layout.addWidget(title_group)
+        layout.addStretch()
+
+        return header
+
+    def _create_file_queue_section(self):
+        """创建文件队列区域"""
+        section = QWidget()
+        layout = QVBoxLayout()
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(12)
+        section.setLayout(layout)
+
+        # 标题和按钮
+        header = QHBoxLayout()
+        title = QLabel("📋 文件队列")
+        title.setObjectName("section_title")
+        header.addWidget(title)
+
+        button_layout = QHBoxLayout()
+        self.select_files_button = QPushButton("📁 选择文件")
+        self.select_files_button.clicked.connect(self.select_files)
+        self.add_folder_button = QPushButton("📂 添加文件夹")
+        self.add_folder_button.clicked.connect(self.select_folder)
+        self.clear_list_button = QPushButton("🗑️ 清空列表")
+        self.clear_list_button.clicked.connect(self.clear_file_list)
+
+        button_layout.addWidget(self.select_files_button)
+        button_layout.addWidget(self.add_folder_button)
+        button_layout.addWidget(self.clear_list_button)
+        header.addLayout(button_layout)
+
+        layout.addLayout(header)
+
+        # 文件列表表格
+        self.file_table = QTableWidget()
+        self.file_table.setColumnCount(6)
+        self.file_table.setHorizontalHeaderLabels(["序号", "文件名", "大小", "状态", "进度", "操作"])
+        self.file_table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        self.file_table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        self.file_table.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
+        self.file_table.setDragDropMode(QAbstractItemView.DragDropMode.DragDrop)
+        self.file_table.setAcceptDrops(True)
+        self.file_table.setDropIndicatorShown(True)
+        self.file_table.horizontalHeader().setStretchLastSection(True)
+        self.file_table.verticalHeader().setVisible(False)
+
+        # 设置表格拖拽
+        self.file_table.dragEnterEvent = self.table_drag_enter_event
+        self.file_table.dropEvent = self.table_drop_event
+
+        # 右键菜单
+        self.file_table.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.file_table.customContextMenuRequested.connect(self.show_context_menu)
+
+        layout.addWidget(self.file_table)
+
+        # 统计信息
+        self.stats_label = QLabel("总计: 0  |  已完成: 0  |  处理中: 0  |  等待中: 0  |  失败: 0")
+        self.stats_label.setObjectName("stats_bar")
+        layout.addWidget(self.stats_label)
+
+        return section
+
+    def _create_control_panel(self):
+        """创建控制面板"""
+        panel = QWidget()
+        panel.setObjectName("control_panel")
+        layout = QHBoxLayout()
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(12)
+        panel.setLayout(layout)
+
+        self.start_button = QPushButton("🚀 开始处理")
+        self.start_button.setObjectName("primary_button")
+        self.start_button.clicked.connect(self.start_processing)
+        layout.addWidget(self.start_button)
+
+        self.pause_button = QPushButton("⏸️ 暂停")
+        self.pause_button.clicked.connect(self.pause_processing)
+        self.pause_button.setEnabled(False)
+        layout.addWidget(self.pause_button)
+
+        self.stop_button = QPushButton("⏹️ 停止")
+        self.stop_button.clicked.connect(self.stop_processing)
+        self.stop_button.setEnabled(False)
+        layout.addWidget(self.stop_button)
+
+        self.retry_button = QPushButton("🔄 重试失败")
+        self.retry_button.clicked.connect(self.retry_failed)
+        layout.addWidget(self.retry_button)
+
+        return panel
+
+    def toggle_sidebar(self):
+        """切换侧边栏显示"""
+        if self.sidebar_panel.width() > 0:
+            self.sidebar_panel.setFixedWidth(0)
+            self.toggle_button.setText("▶")
+        else:
+            self.sidebar_panel.setFixedWidth(320)
+            self.toggle_button.setText("◀")
+
+    def select_folder(self):
+        """选择文件夹"""
+        folder = QFileDialog.getExistingDirectory(self, "选择文件夹", "")
+        if folder:
+            output_dir = self.output_path_edit.text()
+            # 递归扫描文件夹中的媒体文件
+            files = self._scan_media_files(folder, self.recursive_scan_checkbox.isChecked())
+            self.batch_processor.add_files(files, output_dir)
+            self.update_file_table()
+
+    def _scan_media_files(self, folder: str, recursive: bool = True) -> list:
+        """扫描文件夹中的媒体文件"""
+        media_extensions = {'.mp4', '.mkv', '.avi', '.mov', '.flv', '.wmv',
+                          '.wav', '.mp3', '.m4a', '.flac', '.aac'}
+        files = []
+
+        if recursive:
+            for root, _, filenames in os.walk(folder):
+                for filename in filenames:
+                    if Path(filename).suffix.lower() in media_extensions:
+                        files.append(str(Path(root) / filename))
+        else:
+            for item in Path(folder).iterdir():
+                if item.is_file() and item.suffix.lower() in media_extensions:
+                    files.append(str(item))
+
+        return files
 
     def select_files(self):
         """选择多个输入文件"""
@@ -740,6 +1131,14 @@ class SubtitleGeneratorGUI(QMainWindow):
         self.batch_processor.tasks.clear()
         self.update_file_table()
         self.log_message("文件列表已清空")
+
+    def load_stylesheet(self):
+        """加载样式表"""
+        try:
+            with open('gui_styles.qss', 'r', encoding='utf-8') as f:
+                self.setStyleSheet(f.read())
+        except Exception as e:
+            print(f"加载样式表失败: {e}")
 
     def table_drag_enter_event(self, event: QDragEnterEvent):
         """表格拖拽进入事件"""
@@ -842,7 +1241,7 @@ class SubtitleGeneratorGUI(QMainWindow):
 
             # 状态
             status_text = {
-                'pending': '待处理',
+                'pending': '等待中',
                 'processing': '处理中',
                 'completed': '已完成',
                 'failed': '失败',
@@ -850,6 +1249,21 @@ class SubtitleGeneratorGUI(QMainWindow):
             }
             item_status = QTableWidgetItem(status_text.get(task.status, task.status))
             item_status.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+
+            # 设置状态样式
+            if task.status == 'completed':
+                item_status.setBackground(QColor(34, 197, 94, 50))  # 绿色背景
+                item_status.setForeground(QColor(34, 197, 94))      # 绿色文字
+            elif task.status == 'processing':
+                item_status.setBackground(QColor(96, 165, 250, 50)) # 蓝色背景
+                item_status.setForeground(QColor(96, 165, 250))     # 蓝色文字
+            elif task.status == 'pending':
+                item_status.setBackground(QColor(251, 191, 36, 50)) # 黄色背景
+                item_status.setForeground(QColor(251, 191, 36))     # 黄色文字
+            elif task.status == 'failed':
+                item_status.setBackground(QColor(239, 68, 68, 50))   # 红色背景
+                item_status.setForeground(QColor(239, 68, 68))       # 红色文字
+
             self.file_table.setItem(i, 3, item_status)
 
             # 进度
@@ -1107,10 +1521,42 @@ class SubtitleGeneratorGUI(QMainWindow):
         self.progress_bar.setValue(progress)
         self.status_label.setText(status)
 
-    def log_message(self, message: str):
-        """添加日志消息，带时间戳"""
-        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        self.log_text.appendPlainText(f"[{timestamp}] {message}")
+    def log_message(self, message: str, level: str = 'info'):
+        """添加日志消息，带时间戳和emoji
+
+        Args:
+            message: 日志消息
+            level: 日志级别 (info/success/warning/error)
+        """
+        timestamp = datetime.now().strftime('%H:%M:%S')
+
+        # 根据日志级别设置emoji和颜色
+        level_emoji = {
+            'info': '📋',
+            'success': '✅',
+            'warning': '⚠️',
+            'error': '❌'
+        }
+        emoji = level_emoji.get(level, '📋')
+
+        # 设置颜色
+        level_colors = {
+            'info': QColor(148, 163, 184),    # 灰色
+            'success': QColor(34, 197, 94),   # 绿色
+            'warning': QColor(251, 191, 36),  # 黄色
+            'error': QColor(239, 68, 68),    # 红色
+        }
+        text_color = level_colors.get(level, QColor(148, 163, 184))
+
+        # 添加日志消息（使用HTML格式支持颜色）
+        time_color = QColor(96, 165, 250)  # 蓝色
+        color_hex = text_color.name()
+        time_hex = time_color.name()
+
+        # 使用HTML格式实现颜色
+        log_html = f'<span style="color: {time_hex};">[{timestamp}]</span> {emoji} <span style="color: {color_hex};">{message}</span>'
+        self.log_text.appendHtml(log_html)
+
         # 自动滚动到底部
         scrollbar = self.log_text.verticalScrollBar()
         scrollbar.setValue(scrollbar.maximum())

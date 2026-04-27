@@ -30,6 +30,8 @@ wheels/
 # 项目特定
 resource/
 backup/
+.superpowers/
+docs/
 *.wav
 *.mp4
 *.mkv
