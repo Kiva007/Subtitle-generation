@@ -41,7 +41,7 @@ class BatchProcessor(QObject):
     task_finished = pyqtSignal(int, bool, str)  # index, success, error_msg
     batch_progress = pyqtSignal(int, int)       # completed, total
     batch_finished = pyqtSignal(dict)           # summary
-    log_message = pyqtSignal(str)               # log message
+    log_message = pyqtSignal(str, str)           # message, level
 
     def __init__(self, config):
         super().__init__()
@@ -65,7 +65,7 @@ class BatchProcessor(QObject):
                     working_dir=str(Path(file_path).parent / f"temp_{uuid.uuid4().hex[:8]}")
                 )
                 self.tasks.append(task)
-                self.log_message.emit(f"已添加文件: {Path(file_path).name}")
+                self.log_message.emit(f"已添加文件: {Path(file_path).name}", "info")
 
     def remove_files(self, indices: list):
         """从队列中移除指定索引的文件"""
@@ -86,16 +86,16 @@ class BatchProcessor(QObject):
     def start(self):
         """开始批量处理"""
         if self.state != 'IDLE':
-            self.log_message.emit(f"批量处理器状态不是IDLE，当前状态: {self.state}")
+            self.log_message.emit(f"批量处理器状态不是IDLE，当前状态: {self.state}", "warning")
             return
 
         if not self.tasks:
-            self.log_message.emit("没有待处理的任务")
+            self.log_message.emit("没有待处理的任务", "warning")
             return
 
         self.state = 'RUNNING'
         self._paused = False
-        self.log_message.emit(f"开始批量处理，共 {len(self.tasks)} 个任务...")
+        self.log_message.emit(f"开始批量处理，共 {len(self.tasks)} 个任务...", "info")
 
         # 找到第一个待处理的任务
         self.current_index = -1
@@ -106,7 +106,7 @@ class BatchProcessor(QObject):
         if self.state == 'RUNNING':
             self.state = 'PAUSED'
             self._paused = True
-            self.log_message.emit("批量处理已暂停")
+            self.log_message.emit("批量处理已暂停", "warning")
             if self.current_index >= 0 and self.tasks[self.current_index].status == 'processing':
                 self.stop_current_task()
                 self.tasks[self.current_index].status = 'paused'
@@ -116,7 +116,7 @@ class BatchProcessor(QObject):
         if self.state == 'PAUSED':
             self.state = 'RUNNING'
             self._paused = False
-            self.log_message.emit("恢复批量处理...")
+            self.log_message.emit("恢复批量处理...", "info")
 
             # 查找待处理的任务
             if self.current_index >= 0 and self.tasks[self.current_index].status == 'paused':
@@ -141,7 +141,7 @@ class BatchProcessor(QObject):
             for task in self.tasks[self.current_index + 1:]:
                 task.status = 'pending'  # 重置为待处理状态
 
-            self.log_message.emit("批量处理已停止")
+            self.log_message.emit("批量处理已停止", "warning")
             self.state = 'IDLE'
 
     def retry_failed(self):
@@ -154,15 +154,15 @@ class BatchProcessor(QObject):
                 retry_count += 1
 
         if retry_count > 0:
-            self.log_message.emit(f"已重置 {retry_count} 个失败任务")
+            self.log_message.emit(f"已重置 {retry_count} 个失败任务", "info")
         else:
-            self.log_message.emit("没有可重试的失败任务")
+            self.log_message.emit("没有可重试的失败任务", "info")
 
     def _process_next(self):
         """处理下一个任务"""
         # 等待上一个线程完成
         if self._waiting_for_thread:
-            self.log_message.emit("正在等待上一个任务完成...")
+            self.log_message.emit("正在等待上一个任务完成...", "warning")
             return
 
         # 查找下一个待处理的任务
@@ -185,7 +185,7 @@ class BatchProcessor(QObject):
         task = self.tasks[index]
         task.status = 'processing'
         task.progress = 0.0
-        self.log_message.emit(f"开始处理文件 ({index + 1}/{len(self.tasks)}): {Path(task.file_path).name}")
+        self.log_message.emit(f"开始处理文件 ({index + 1}/{len(self.tasks)}): {Path(task.file_path).name}", "info")
         self.task_started.emit(index, task.file_path)
 
         # 清理之前的线程
@@ -198,7 +198,7 @@ class BatchProcessor(QObject):
         self._current_thread = TaskThread(task, self.config)
         self._current_thread.progress.connect(lambda msg: self._on_task_progress(index, msg))
         self._current_thread.finished.connect(lambda success, error: self._on_task_finished(index, success, error))
-        self._current_thread.log.connect(self.log_message.emit)
+        self._current_thread.log.connect(lambda msg: self.log_message.emit(msg, "info"))
         self._waiting_for_thread = True
         self._current_thread.start()
 
@@ -272,7 +272,7 @@ class BatchProcessor(QObject):
                     if task.process_handle.poll() is None:
                         task.process_handle.kill()
                 except Exception as e:
-                    self.log_message.emit(f"停止任务时出错: {e}")
+                    self.log_message.emit(f"停止任务时出错: {e}", "error")
 
     def _update_batch_progress(self):
         """更新批量处理进度"""
