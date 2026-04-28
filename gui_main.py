@@ -803,6 +803,7 @@ class SubtitleGeneratorGUI(QMainWindow):
 
         self.whisper_model_edit = QLineEdit("kotoba-tech/kotoba-whisper-v2.1")
         self.whisper_model_edit.setObjectName("tech_input")
+        self.whisper_model_edit.setReadOnly(True)
         layout.addWidget(self.whisper_model_edit)
 
         # 翻译模型
@@ -811,6 +812,7 @@ class SubtitleGeneratorGUI(QMainWindow):
         layout.addWidget(trans_label)
 
         self.trans_model_combo = QComboBox()
+        self.trans_model_combo.setObjectName("tech_input")
         self.trans_model_combo.addItems(["sakura-galtransl-7b-v3.7", "qwen2.5-7b-instruct", "hy-mt1.5-1.8b"])
         layout.addWidget(self.trans_model_combo)
 

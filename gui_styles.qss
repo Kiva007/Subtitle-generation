@@ -75,8 +75,13 @@ QLineEdit:hover, QSpinBox:hover {
     border: 1px solid #60a5fa;
 }
 
-/* 技术字体输入框 */
+/* 技术字体输入框和下拉框 */
 #tech_input {
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    font-size: 12px;
+}
+
+#tech_input QAbstractItemView {
     font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
     font-size: 12px;
 }
