@@ -12,6 +12,8 @@
 - **智能过滤**：自动过滤无意义的语气词（ああ、うん等）
 - **配置持久化**：自动保存用户设置和偏好
 - **子进程架构**：避免DLL冲突，确保稳定运行
+- **批量处理**：多文件队列管理，支持递归扫描、断点续传
+- **日志过滤**：非调试模式下智能隐藏翻译明细，日志更清爽
 
 ## 快速开始
 
@@ -146,11 +148,19 @@ original_subtitle = True
 translated_subtitle = True
 bilingual_subtitle = True
 filter_mood_words = True
+debug_mode = True
+
+[Batch]
+continue_on_failure = True
+pause_on_failure = False
+max_retries = 3
+single_file_timeout = 600
+recursive_folder_scan = True
+temp_dir_keep_on_success = False
 
 [UI]
-window_width = 800
-window_height = 700
-last_input_file = 
+window_width = 900
+window_height = 800
 ```
 
 ## 故障排除
@@ -227,10 +237,16 @@ python translate_subtitle.py "input.mp4" --output-dir "output"
 Subtitle generation/
 ├── gui_main.py              # GUI主程序
 ├── gui_config.py            # 配置管理
+├── gui_worker.py            # 工作线程
+├── gui_styles.qss           # QSS样式表
 ├── subprocess_processor.py  # 子进程处理逻辑
 ├── transcribe.py            # Whisper转录封装
 ├── llm_client.py            # LLM客户端封装
-└── translate_subtitle.py    # 命令行版本
+├── translate_subtitle.py    # 命令行版本
+├── resource/                # 输出资源
+├── docs/                    # 设计文档
+├── test/                    # 测试文件
+└── infor/                   # 参考信息
 ```
 
 ### 工作流程
@@ -248,8 +264,18 @@ Subtitle generation/
 
 ## 版本历史
 
+### v2.1 (2026-04-30) — 稳定版
+- ✅ 全新GUI布局和QSS样式系统
+- ✅ 总体进度条和任务百分比实时显示
+- ✅ 翻译日志智能过滤（非调试模式下隐藏翻译明细）
+- ✅ 图标和字体微调，界面更整洁
+- ✅ 修复运行时BUG，提升稳定性
+
 ### v2.0 (2026-04-28)
 - ✅ 实现多文件批量处理功能
+- ✅ 批量任务队列管理（继续/暂停/重试）
+- ✅ 递归扫描子文件夹
+- ✅ 配置持久化批量选项（超时、重试次数等）
 
 ### v1.0 (2026-04-27)
 - ✅ 完整的日语转录和翻译功能
@@ -262,7 +288,6 @@ Subtitle generation/
 - ✅ 实时日志和时间戳显示
 - ✅ 智能模型选择（自动恢复上次选择）
 - ✅ 子进程架构（避免PyTorch DLL冲突）
-- ✅ Git版本控制和回滚支持
 
 ## 贡献
 

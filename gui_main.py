@@ -198,9 +198,16 @@ class BatchProcessor(QObject):
         self._current_thread = TaskThread(task, self.config)
         self._current_thread.progress.connect(lambda msg: self._on_task_progress(index, msg))
         self._current_thread.finished.connect(lambda success, error: self._on_task_finished(index, success, error))
-        self._current_thread.log.connect(lambda msg: self.log_message.emit(msg, "info"))
+        self._current_thread.log.connect(lambda msg: self._on_subprocess_log(msg))
         self._waiting_for_thread = True
         self._current_thread.start()
+
+    def _on_subprocess_log(self, msg: str):
+        """子进程日志输出，非调试模式下过滤翻译明细"""
+        import re
+        if re.match(r'\[翻译\]\s*\[\d+/\d+\]', msg) and not self.config.getboolean('Output', 'debug_mode', True):
+            return
+        self.log_message.emit(msg, "info")
 
     def _on_task_progress(self, index: int, message: str):
         """处理任务进度更新"""
@@ -1287,6 +1294,12 @@ class SubtitleGeneratorGUI(QMainWindow):
 
         self.stats_label.setText(f"统计：共{total}个 | 待处理:{pending}  处理中:{processing}  已完成:{completed}  失败:{failed}")
 
+        # 更新总体进度条
+        done = completed + failed
+        overall_progress = int((done / total) * 100) if total > 0 else 0
+        self.overall_progress_bar.setValue(overall_progress)
+        self.overall_progress_label.setText(f"({done}/{total})")
+
     def select_output_dir(self):
         """选择输出目录"""
         dir_path = QFileDialog.getExistingDirectory(self, "选择输出目录")
@@ -1435,6 +1448,7 @@ class SubtitleGeneratorGUI(QMainWindow):
         if index < len(self.batch_processor.tasks):
             self.batch_processor.tasks[index].progress = progress
             self.current_progress_bar.setValue(int(progress))
+            self.current_progress_label.setText(f"处理中 ({int(progress)}%)")
             self.status_label.setText(message)
 
             # 更新表格中的进度
